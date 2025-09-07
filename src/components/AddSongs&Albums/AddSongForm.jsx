@@ -1,5 +1,5 @@
-import Modal from "./Modal";
-import Field from "./Field";
+import Modal from "../common/Modal";
+import Field from "../common/Field";
 
 const AddSongForm = ({ open, onClose, form, onChange, onSubmit }) => {
   if (!open) return null;
