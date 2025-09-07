@@ -1,21 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { verifyToken } from "./utils";
 import "./index.css";
-import SongCard from "./components/SongCard";
-import EmptyState from "./components/EmptyState";
 import SideNav from "./components/SideNav";
 import AddSongForm from "./components/AddSongForm";
+import Header from "./components/Header";
+import SongsForYouSection from "./components/SongsForYouSection";
+import AlbumSection from "./components/AlbumSection";
+import CreateAlbumForm from "./components/CreateAlbumForm";
+import ShowActiveAlbum from "./components/ShowActiveAlbum";
+import AddSongInAlbum from "./components/AddSongInAlbum";
 
-const STORAGE_KEY = "music_library_songs";
-const loadSongs = () => {
+const SONGS_KEY = "music_library_songs";
+const ALBUMS_KEY = "music_library_albums";
+
+const load = (k, fallback) => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const raw = localStorage.getItem(k);
+    return raw ? JSON.parse(raw) : fallback;
   } catch {
-    return [];
+    return fallback;
   }
 };
-const saveSongs = (list) => localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const uid = () => Date.now() + Math.random().toString(16).slice(2);
 
 export default function MusicLibrary({ token, logout }) {
@@ -23,11 +29,12 @@ export default function MusicLibrary({ token, logout }) {
   const role = user?.role || "user";
   const isAdmin = role === "admin";
 
+  /* ---------------- SONGS ---------------- */
   const [songs, setSongs] = useState([]);
-  useEffect(() => setSongs(loadSongs()), []);
-  useEffect(() => saveSongs(songs), [songs]);
-  const [q, setQ] = useState("");
+  useEffect(() => setSongs(load(SONGS_KEY, [])), []);
+  useEffect(() => save(SONGS_KEY, songs), [songs]);
 
+  const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     if (!query) return songs;
@@ -44,10 +51,8 @@ export default function MusicLibrary({ token, logout }) {
   const rowRef = useRef(null);
   useEffect(() => setPage(1), [q, songs]);
 
-  // Track scroll button visibility
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
   const updateScrollButtons = () => {
     const el = rowRef.current;
     if (!el) return;
@@ -58,17 +63,14 @@ export default function MusicLibrary({ token, logout }) {
   useEffect(() => {
     const el = rowRef.current;
     if (!el) return;
-
     const onScroll = () => {
       updateScrollButtons();
-
       const nearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 240;
       const moreAvailable = page * pageSize < filtered.length;
       if (nearEnd && moreAvailable) setPage((p) => p + 1);
     };
-
     el.addEventListener("scroll", onScroll, { passive: true });
-    updateScrollButtons(); // run once initially
+    updateScrollButtons();
     return () => el.removeEventListener("scroll", onScroll);
   }, [filtered.length, page]);
 
@@ -82,10 +84,8 @@ export default function MusicLibrary({ token, logout }) {
     duration: "",
     cover: "",
   });
-
   const onChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
-
   const addSong = (e) => {
     e.preventDefault();
     const title = form.title.trim();
@@ -104,115 +104,83 @@ export default function MusicLibrary({ token, logout }) {
     setForm({ title: "", artist: "", album: "", duration: "", cover: "" });
     setOpen(false);
   };
-
   const deleteSong = (id) => setSongs((prev) => prev.filter((s) => s.id !== id));
+
+  const [albums, setAlbums] = useState([]);
+  useEffect(() => setAlbums(load(ALBUMS_KEY, [])), []);
+  useEffect(() => save(ALBUMS_KEY, albums), [albums]);
+
+  const [albumForm, setAlbumForm] = useState({
+    title: "",
+    artist: "",
+    planned: "",
+    cover: "",
+  });
+  const [openAlbumForm, setOpenAlbumForm] = useState(false);
+  const onAlbumChange = (e) =>
+    setAlbumForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+  const createAlbum = (e) => {
+    e.preventDefault();
+    if (!albumForm.title.trim()) return alert("Title required");
+    const album = {
+      id: uid(),
+      title: albumForm.title.trim(),
+      artist: albumForm.artist.trim(),
+      planned: parseInt(albumForm.planned || "0", 10),
+      cover: albumForm.cover.trim(),
+      songIds: [],
+    };
+    setAlbums((prev) => [album, ...prev]);
+    setAlbumForm({ title: "", artist: "", planned: "", cover: "" });
+    setOpenAlbumForm(false);
+  };
+
+  const [activeAlbum, setActiveAlbum] = useState(null);
+  const [selectSongsOpen, setSelectSongsOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState({});
+  const toggleSong = (id) =>
+    setSelectedIds((m) => ({ ...m, [id]: !m[id] }));
+  const saveAlbumSongs = () => {
+    const ids = Object.entries(selectedIds)
+      .filter(([, v]) => v)
+      .map(([id]) => id);
+    setAlbums((prev) =>
+      prev.map((a) =>
+        a.id === activeAlbum.id ? { ...a, songIds: ids } : a
+      )
+    );
+    setSelectSongsOpen(false);
+  };
+  const songsById = useMemo(
+    () => Object.fromEntries(songs.map((s) => [s.id, s])),
+    [songs]
+  );
 
   return (
     <div className="min-h-screen bg-[#0f0f0f] text-white">
-      <header className="sticky top-0 z-30 bg-[#0f0f0f]/85  border-b border-white/10">
-        <div className="pl-64 pr-6 h-14 flex items-center gap-3">
-          <div className="flex-1">
-            <div className="w-full max-w-2xl">
-              <div className="flex items-center gap-3 bg-white/10 rounded-full px-4 py-2">
-                <span>🔎</span>
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Search songs, artists, albums"
-                  className="bg-transparent outline-none w-full text-sm placeholder-white/60"
-                />
-              </div>
-            </div>
-          </div>
-
-          {isAdmin && (
-            <button
-              className="px-4 py-2 rounded-full bg-white text-black text-sm font-medium hover:opacity-90"
-              onClick={() => setOpen(true)}
-            >
-              Add song
-            </button>
-          )}
-          <button
-            className="ml-2 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 text-sm"
-            onClick={logout}
-          >
-            Logout
-          </button>
-        </div>
-      </header>
+      <Header q={q} setQ ={setQ} setOpen={setOpen} logout={logout} isAdmin={isAdmin} />
 
       <SideNav />
 
       <main className="pl-64">
-        <section className="px-6 pt-6 pb-2">
-          <h2 className="text-2xl md:text-3xl font-extrabold mb-4">Songs for you</h2>
-          <div className="relative group">
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-[#0f0f0f] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-[#0f0f0f] to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div
-              ref={rowRef}
-              className="hscroll overflow-x-auto overflow-y-hidden pr-6"
-            >
-              <div className="flex gap-4">
-                {visible.length === 0 ? (
-                  <EmptyState isAdmin={isAdmin} openModal={() => setOpen(true)} />
-                ) : (
-                  visible.map((s) => (
-                    <SongCard
-                      key={s.id}
-                      song={s}
-                      canDelete={isAdmin}
-                      onDelete={() => deleteSong(s.id)}
-                    />
-                  ))
-                )}
-              </div>
-            </div>
+        <SongsForYouSection 
+          rowRef = {rowRef}
+          visible = {visible}
+          isAdmin = {isAdmin}
+          setOpen = {setOpen}
+          canScrollLeft = {canScrollLeft}
+          canScrollRight = {canScrollRight}
+          updateScrollButtons = {updateScrollButtons}
+          filtered = {filtered}
+          deleteSong={deleteSong}
+        />
 
-            {/* Left button */}
-            {canScrollLeft && (
-              <button
-                type="button"
-                aria-label="Scroll left"
-                onClick={() => {
-                  rowRef.current?.scrollBy({ left: -600, behavior: "smooth" });
-                  updateScrollButtons();
-                }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/10"
-              >
-                ‹
-              </button>
-            )}
-
-            {/* Right button */}
-            {canScrollRight && (
-              <button
-                type="button"
-                aria-label="Scroll right"
-                onClick={() => {
-                  const el = rowRef.current;
-                  el?.scrollBy({ left: 600, behavior: "smooth" });
-                  updateScrollButtons();
-                  const moreAvailable = page * pageSize < filtered.length;
-                  if (el && moreAvailable) {
-                    const nearEnd =
-                      el.scrollLeft + el.clientWidth >= el.scrollWidth - 840;
-                    if (nearEnd) setPage((p) => p + 1);
-                  }
-                }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center justify-center w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur border border-white/10"
-              >
-                ›
-              </button>
-            )}
-          </div>
-          {visible.length < filtered.length && (
-            <div className="text-center text-white/50 text-xs mt-3">
-              Scroll or tap › to load more
-            </div>
-          )}
-        </section>
+        <AlbumSection 
+          isAdmin={isAdmin}
+          setOpenAlbumForm={setOpenAlbumForm}
+          albums={albums}
+          setActiveAlbum={setActiveAlbum}
+        />
       </main>
 
       {isAdmin && open && (
@@ -222,6 +190,37 @@ export default function MusicLibrary({ token, logout }) {
           form={form}
           onChange={onChange}
           onSubmit={addSong}
+        />
+      )}
+
+      {isAdmin && openAlbumForm && (
+        <CreateAlbumForm 
+          createAlbum={createAlbum}
+          albumForm={albumForm}
+          onAlbumChange={onAlbumChange}
+          setOpenAlbumForm={setOpenAlbumForm}
+        />
+      )}
+
+      {activeAlbum && (
+        <ShowActiveAlbum 
+          setActiveAlbum={setActiveAlbum}
+          activeAlbum={activeAlbum}
+          isAdmin={isAdmin}
+          setSelectedIds={setSelectedIds}
+          setSelectSongsOpen={setSelectSongsOpen}
+          songsById={songsById}
+        />
+      )}
+
+      {isAdmin && selectSongsOpen && activeAlbum && (
+        <AddSongInAlbum 
+        activeAlbum={activeAlbum}
+        songs={songs}
+        selectedIds={selectedIds}
+        toggleSong={toggleSong}
+        setSelectSongsOpen={setSelectSongsOpen}
+        saveAlbumSongs={saveAlbumSongs}
         />
       )}
     </div>
