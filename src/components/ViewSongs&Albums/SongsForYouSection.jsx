@@ -16,6 +16,9 @@ const SongsForYouSection = ({
     pageSize,
     scrollLeft,
     scrollRight,
+    isUser,
+    likedSongs,
+    toggleLike,
 }) => {
     const fallbackScrollLeft = () => {
         const el = rowRef?.current;
@@ -42,7 +45,7 @@ const SongsForYouSection = ({
     const handleScrollRight = scrollRight ?? fallbackScrollRight;
 
     return (
-        <section className="px-3 md:px-6 pt-4 md:pt-6 pb-1 md:pb-2">
+        <section className="pt-4 md:pt-6 pb-1 md:pb-2">
             <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold mb-3 md:mb-4">
                 Songs for you
             </h2>
@@ -55,7 +58,7 @@ const SongsForYouSection = ({
                 <div ref={rowRef} className="hscroll overflow-x-auto overflow-y-hidden pr-3 md:pr-6">
                     <div className="flex gap-3 md:gap-4">
                         {visible.length === 0 ? (
-                            <EmptyState isAdmin={isAdmin} openModal={() => setOpen(true)} />
+                            <EmptyState isAdmin={isAdmin} openModal={() => setOpen(true)} type="song" />
                         ) : (
                             visible.map((s) => (
                                 <SongCard
@@ -63,6 +66,9 @@ const SongsForYouSection = ({
                                     song={s}
                                     canDelete={isAdmin}
                                     onDelete={() => deleteSong(s.id)}
+                                    isUser={isUser}
+                                    isLiked={likedSongs.some((ls) => ls.id === s.id)}
+                                    onToggleLike={() => toggleLike(s)}
                                 />
                             ))
                         )}

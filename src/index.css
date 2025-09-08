@@ -9,3 +9,6 @@
   -ms-overflow-style: none;  
 }
 
+html, body, #root { height: 100%; }
+body { overflow-x: hidden; }         
+.hscroll { -webkit-overflow-scrolling: touch; }

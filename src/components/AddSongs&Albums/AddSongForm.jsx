@@ -1,5 +1,6 @@
 import Modal from "../common/Modal";
 import Field from "../common/Field";
+import {toast} from "sonner"
 
 const AddSongForm = ({ open, onClose, form, onChange, onSubmit }) => {
   if (!open) return null;
@@ -9,6 +10,7 @@ const AddSongForm = ({ open, onClose, form, onChange, onSubmit }) => {
     if (typeof onSubmit === "function") {
       onSubmit(e);
     }
+    toast("Song added succesfully")
   };
 
   return (
