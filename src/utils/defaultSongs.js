@@ -3,8 +3,8 @@ const uid = () => Date.now() + Math.random().toString(16).slice(2);
 export const DEFAULT_SONGS = [
   {
     id: uid(),
-    title: "After hours (default)",
-    artist: "Weeknd",
+    title: "After hours",
+    artist: "Weeknd (default)",
     album: "My dear melancholy",
     duration: "3:53",
     cover:
@@ -13,8 +13,8 @@ export const DEFAULT_SONGS = [
   },
   {
     id: uid(),
-    title: "For a reason (default)",
-    artist: "Karan Aujla",
+    title: "For a reason",
+    artist: "Karan Aujla (default)",
     album: "P-Pop Culture",
     duration: "3:20",
     cover:
@@ -23,8 +23,8 @@ export const DEFAULT_SONGS = [
   },
   {
     id: uid(),
-    title: "My eyes (default)",
-    artist: "Travis Scott",
+    title: "My eyes",
+    artist: "Travis Scott (default)",
     album: "Utopia",
     duration: "3:23",
     cover:
@@ -33,8 +33,8 @@ export const DEFAULT_SONGS = [
   },
   {
     id: uid(),
-    title: "Flight (default)",
-    artist: "Hans Zimmer",
+    title: "Flight",
+    artist: "Hans Zimmer (default)",
     album: "The Dark Knight",
     duration: "4:45",
     cover:
